@@ -258,7 +258,7 @@ const swaggerOptions = {
       },
     },
   },
-  apis: ["./api_productos_con_auth_express_jwt.js"],
+  apis: ["./api_productos.js"],
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
