@@ -251,7 +251,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: "https://api-productos-jwt.onrender.com", // 🔹 tu dominio de Render
+        url: "https://api-products-cl0w.onrender.com", // 🔹 tu dominio de Render
       },
     ],
     components: {
