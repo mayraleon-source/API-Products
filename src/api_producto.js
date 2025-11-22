@@ -7,7 +7,7 @@ const cors = require('cors');
 
 const app = express();
 
-// Lista de usuarios con sus credenciales y roles (¡CORREGIDO!)
+// Lista de usuarios con sus credenciales y roles
 const USERS = [
     { username: 'admin', password: 'securepass123', roles: ['admin'] } 
 ];
@@ -27,29 +27,7 @@ let productos = [
 ];
 
 // ================== AUTENTICACIÓN ==================
-/**
- * @swagger
- * /auth:
- * post:
- * summary: Crear token de autenticación
- * description: Retorna un token JWT si el usuario y contraseña son correctos.
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * username:
- * type: string
- * example: admin
- * password:
- * type: string
- * example: securepass123
- * responses:
- * 200:
- * description: Token generado
- */
+
 app.post("/auth", (req, res) => {
     const { username, password } = req.body;
     
@@ -67,111 +45,44 @@ app.post("/auth", (req, res) => {
 // Middleware para verificar token
 function verificarToken(req, res, next) {
     const authHeader = req.headers["authorization"];
-    if (!authHeader) return res.sendStatus(403);
+    if (!authHeader || !authHeader.startsWith("Bearer ")) return res.sendStatus(403); 
+    
     const token = authHeader.split(" ")[1];
+    
     jwt.verify(token, SECRET_KEY, (err, user) => {
-        if (err) return res.sendStatus(403);
+        if (err) {
+            return res.sendStatus(403); 
+        }
         req.user = user;
         next();
     });
 }
 
-// ================== CRUD PRODUCTOS ==================
-/**
- * @swagger
- * /productos:
- * get:
- * summary: Listar todos los productos
- * responses:
- * 200:
- * description: Lista de productos
- *
- * post:
- * summary: Crear un nuevo producto
- * security:
- * - bearerAuth: []
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * name:
- * type: string
- * example: blusa
- * price:
- * type: number
- * example: 100
- * stock:
- * type: number
- * example: 15
- * color:
- * type: string
- * example: black
- * brand:
- * type: string
- * example: bce
- * responses:
- * 201:
- * description: Producto creado
- */
-app.get("/productos", (req, res) => {
+// ================== CRUD PRODUCTOS (RUTAS CORREGIDAS) ==================
+
+// 🟢 GET /products: Listar todos los productos
+app.get("/products", (req, res) => {
     res.json(productos);
 });
 
-app.post("/productos", verificarToken, (req, res) => {
-    const { name, price, stock, color, brand, imageUrl, description } = req.body;
+// 🟢 POST /products: Crear un nuevo producto (usa verificarToken)
+app.post("/products", verificarToken, (req, res) => {
+    const { name, price, stock, color, brand, imageUrl, description, category } = req.body;
     
-    // El ID se incrementa correctamente
-    const nuevoProducto = { id: productos.length + 1, name, price, stock, color, brand, imageUrl, description };
+    // Aseguramos que haya un ID único.
+    const newId = productos.length > 0 ? Math.max(...productos.map(p => p.id)) + 1 : 1;
+
+    const nuevoProducto = { 
+        id: newId, 
+        name, price, stock, color, brand, imageUrl, description, category 
+    };
+    
     productos.push(nuevoProducto);
     res.status(201).json(nuevoProducto);
 });
 
-/**
- * @swagger
- *"/productos/{id}": {
- * "get": {
- * "summary": "Obtener un producto por ID",
- * "tags": ["Productos"],
- * "security": [{ "bearerAuth": [] }],
- * "parameters": [
- * {
- * "name": "id",
- * "in": "path",
- * "required": true,
- * "schema": {
- * "type": "integer"
- * },
- * "description": "ID del producto a consultar"
- * }
- * ],
- * "responses": {
- * "200": {
- * "description": "Producto encontrado",
- * "content": {
- * "application/json": {
- * "example": {
- * "id": 1,
- * "name": "Zapatillas",
- * "price": 79.9,
- * "stock": 10,
- * "color": "blue",
- * "brand": "Essence"
- * }
- * }
- * }
- * },
- * "404": {
- * "description": "Producto no encontrado"
- * }
- * }
- * }
- *}
- */
-// Obtener producto por ID
-app.get('/productos/:id', verificarToken, (req, res) => {
+// 🟢 GET /products/:id: Obtener un producto por ID (usa verificarToken)
+app.get('/products/:id', verificarToken, (req, res) => {
     const { id } = req.params;
     const producto = productos.find(p => p.id === parseInt(id));
     
@@ -182,84 +93,37 @@ app.get('/productos/:id', verificarToken, (req, res) => {
     res.json(producto);
 });
 
-/**
- * @swagger
- * /productos/{id}:
- * put:
- * summary: Actualizar un producto por ID
- * security:
- * - bearerAuth: []
- * parameters:
- * - in: path
- * name: id
- * required: true
- * schema:
- * type: integer
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * name:
- * type: string
- * example: tenis
- * price:
- * type: number
- * example: 300
- * stock:
- * type: number
- * example: 5
- * color:
- * type: string
- * example: black
- * brand:
- * type: string
- * example: nice
- * responses:
- * 200:
- * description: Producto actualizado
- *
- * delete:
- * summary: Eliminar un producto por ID
- * security:
- * - bearerAuth: []
- * parameters:
- * - in: path
- * name: id
- * required: true
- * schema:
- * type: integer
- * responses:
- * 200:
- * description: Producto eliminado
- */
-app.put("/productos/:id", verificarToken, (req, res) => {
+// 🟢 PUT /products/:id: Actualizar un producto por ID (usa verificarToken)
+app.put("/products/:id", verificarToken, (req, res) => {
     const { id } = req.params;
-    const { name, price, stock, color, brand, imageUrl, description } = req.body;
-    const producto = productos.find((p) => p.id == id);
-    if (!producto) return res.status(404).json({ message: "Producto no encontrado" });
+    const { name, price, stock, color, brand, imageUrl, description, category } = req.body;
+    const index = productos.findIndex((p) => p.id == id);
+    
+    if (index === -1) return res.status(404).json({ message: "Producto no encontrado" });
     
     // Actualización de campos
-    producto.name = name || producto.name;
-    producto.price = price || producto.price;
-    producto.stock = stock || producto.stock;
-    producto.color = color || producto.color;
-    producto.brand = brand || producto.brand;
-    producto.imageUrl = imageUrl || producto.imageUrl;
-    producto.description = description || producto.description;
+    const producto = productos[index];
+    producto.name = name !== undefined ? name : producto.name;
+    producto.price = price !== undefined ? price : producto.price;
+    producto.stock = stock !== undefined ? stock : producto.stock;
+    producto.color = color !== undefined ? color : producto.color;
+    producto.brand = brand !== undefined ? brand : producto.brand;
+    producto.imageUrl = imageUrl !== undefined ? imageUrl : producto.imageUrl;
+    producto.description = description !== undefined ? description : producto.description;
+    producto.category = category !== undefined ? category : producto.category;
+
 
     res.json(producto);
 });
 
-app.delete("/productos/:id", verificarToken, (req, res) => {
+// 🟢 DELETE /products/:id: Eliminar un producto por ID (usa verificarToken)
+app.delete("/products/:id", verificarToken, (req, res) => {
     const { id } = req.params;
     productos = productos.filter((p) => p.id != id);
     res.json({ message: "Producto eliminado" });
 });
 
-// ================== SWAGGER CONFIG ==================
+// ================== SWAGGER CONFIG (Ajustado a /products) ==================
 const swaggerOptions = {
     definition: {
         openapi: "3.0.0",
@@ -270,7 +134,7 @@ const swaggerOptions = {
         },
         servers: [
             {
-                url: "https://api-products-cl0w.onrender.com", // 🔹 tu dominio de Render
+                url: "https://api-products-cl0w.onrender.com", 
             },
         ],
         components: {
@@ -283,7 +147,7 @@ const swaggerOptions = {
             },
         },
     },
-    apis: ["./api_productos.js"], // Apunta al nombre del archivo de la API
+    apis: ["./api_producto.js"], 
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
